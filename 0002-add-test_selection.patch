@@ -1,0 +1,45 @@
+From 5588c03b90894b641e62f415f1f193130a0c1e98 Mon Sep 17 00:00:00 2001
+From: hv10 <noeldanz@gmail.com>
+Date: Fri, 7 Jul 2023 11:58:43 +0200
+Subject: [PATCH] add test_selection
+
+---
+ .vscode/launch.json | 5 ++++-
+ .vscode/tasks.json  | 5 ++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/.vscode/launch.json b/.vscode/launch.json
+index f231988..5ce196a 100644
+--- a/.vscode/launch.json
++++ b/.vscode/launch.json
+@@ -51,7 +51,10 @@
+             "type": "pickString",
+             "description": "Test Cases",
+             "options": [
+-                "*" // add the case matchers you want to make available here
++                "*", // add the case matchers you want to make available here
++                "A1*", // add the case matchers you want to make available here
++                "A2*", // add the case matchers you want to make available here
++                "A3*", // add the case matchers you want to make available here
+             ]
+         }
+     ]
+diff --git a/.vscode/tasks.json b/.vscode/tasks.json
+index 103826c..a063e63 100644
+--- a/.vscode/tasks.json
++++ b/.vscode/tasks.json
+@@ -87,7 +87,10 @@
+       "type": "pickString",
+       "description": "Test Cases",
+       "options": [
+-        "*" // add the other test case matchers here, make sure to match them with the ones in launch.json
++        "*", // add the other test case matchers here, make sure to match them with the ones in launch.json
++        "A1*",
++        "A2*",
++        "A3*"
+       ]
+     }
+   ]
+-- 
+2.37.0 (Apple Git-136)
+

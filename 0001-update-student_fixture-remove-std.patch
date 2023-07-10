@@ -1,0 +1,296 @@
+From d321b6b0795161b0e634fcb641532b961fb93eb3 Mon Sep 17 00:00:00 2001
+From: hv10 <noeldanz@gmail.com>
+Date: Fri, 7 Jul 2023 11:52:21 +0200
+Subject: [PATCH] update student_fixture; remove std;
+
+---
+ README.md                     |  2 +-
+ src/a_star.h                  |  6 +++---
+ src/vlib/bag.h                | 35 ++++++++++++++++++++-----------
+ src/vlib/index_min_pq.h       | 13 +++++++++++-
+ src/weighted_struct_digraph.h |  1 -
+ tests/test_a_star.cpp         | 39 ++++++++++++++++++++++++-----------
+ tests/test_struct_graph.cpp   | 29 +++++++++++---------------
+ 7 files changed, 78 insertions(+), 47 deletions(-)
+
+diff --git a/README.md b/README.md
+index 74678c3..3c3b325 100644
+--- a/README.md
++++ b/README.md
+@@ -27,7 +27,7 @@ Gutes gelingen!
+ 
+ In dieser Aufgabe erweitern Sie die Symbol-Digraphen Implementierung, welche Sie in der VL kennen gelernt haben, um die Fähigkeit in den Nodes beliebige Attribute, in beliebiger aber zur Compilezeit fester Form, zu speichern. Zusätzlich erweitern wir den Symbol-DiGraph um Kantengewichte. Die Nodes sollen über Structs implementiert werden die der jeweilige Verwender des Graphen definieren muss. Diese erweiterte Implementierung nutzen Sie dann um die Daten aus `data/airports.csv` und `data/routes.csv` als Graph einzulesen.
+ 
+-Der `WeightedStructDigraph` wird als constructor einen `std::vector` von Structs entgegennehmen, welche genutzt werden um die Knoten des Graphen zu initialisieren.
++Der `WeightedStructDigraph` wird als constructor einen `Bag<T>` von Structs entgegennehmen, welche genutzt werden um die Knoten des Graphen zu initialisieren.
+ Kanten werden nach construction über eine `add_edge` Funktion realisiert welche die entsprechende Funktion auf dem inneren Graphen aufruft. `add_edge` bekommt als Argumente die beiden Knoten, sowie das Gewicht der Kante zwischen den beiden.
+ Wir werden auch hier wieder `template`s nutzen um die gewünschte Generalität zu erreichen.
+ Lassen Sie sich bei der Implementierung **stark** vom Symbol-DiGraphen inspirieren und bieten Sie die selben Operatoren an. Weiterhin möchten wir gerne die aus der VL bekannten `Edge` Klasse für unsere gewichteten Kanten wiederverwenden. Dazu sollen Sie den `EdgeWeightedDigraph` wiederverwenden.
+diff --git a/src/a_star.h b/src/a_star.h
+index c747caa..197ff65 100644
+--- a/src/a_star.h
++++ b/src/a_star.h
+@@ -3,11 +3,11 @@
+ #include <vector>
+ 
+ #include "vlib/bag.h"
+-#include "vlib/min_pq.h"
++#include "vlib/index_min_pq.h"
+ #include "weighted_struct_digraph.h"
+ 
+ template <typename T>
+-std::vector<T> a_star(
++Bag<T> a_star(
+     const WeightedStructDigraph<T>& sdg, const T& source, const T& dest,
+     std::function<float(const WeightedStructDigraph<T>&, const T&, const T&)>
+         heuristic) {
+@@ -15,5 +15,5 @@ std::vector<T> a_star(
+     // Bedenken Sie das die Distamzmaße aus distances.h nicht in Stunden sind
+     // und umgewandelt werden müssen und daher nicht _direkt_ genutzt werden
+     // können.
+-    return std::vector<T>();
++    return Bag<T>();
+ }
+\ No newline at end of file
+diff --git a/src/vlib/bag.h b/src/vlib/bag.h
+index ab6e4c9..2e77936 100644
+--- a/src/vlib/bag.h
++++ b/src/vlib/bag.h
+@@ -2,7 +2,8 @@
+  *
+  *  A generic bag or multiset, implemented using a singly linked list.
+  *
+- * Based on the source code from Robert Sedgewick and Kevin Wayne at https://algs4.cs.princeton.edu/
++ * Based on the source code from Robert Sedgewick and Kevin Wayne at
++ *https://algs4.cs.princeton.edu/
+  *
+  ******************************************************************************/
+ 
+@@ -10,6 +11,7 @@
+ #define __BAG_H__
+ 
+ #include <cstddef>
++#include <exception>
+ #include <iterator>
+ 
+ using namespace std;
+@@ -84,19 +86,13 @@ class Bag {
+     }
+ 
+     // destructor
+-    ~Bag() {
+-        free_list();
+-    }
++    ~Bag() { free_list(); }
+ 
+     // is_empty method
+-    bool is_empty() const {
+-        return (head == nullptr);
+-    }
++    bool is_empty() const { return (head == nullptr); }
+ 
+     // size method
+-    int size() const {
+-        return (n);
+-    }
++    int size() const { return (n); }
+ 
+     // adds the item to the bag
+     void add(const T& item) {
+@@ -108,6 +104,17 @@ class Bag {
+         return;
+     }
+ 
++    T operator[](int idx) {
++        // this function is an extension to the VL version to make the code less
++        // verbose
++        if (idx > n) throw(std::out_of_range("Index out of Range"));
++        List* curr = head;
++        for (int i = 0; i < idx; i++) {
++            curr = curr->next;
++        }
++        return curr->item;
++    }
++
+     // adding an iterator over the items of the bag
+     struct Iterator {
+         using iterator_category = forward_iterator_tag;
+@@ -128,8 +135,12 @@ class Bag {
+             return tmp;
+         };
+ 
+-        friend bool operator==(const Iterator& a, const Iterator& b) { return a.m_ptr == b.m_ptr; };
+-        friend bool operator!=(const Iterator& a, const Iterator& b) { return a.m_ptr != b.m_ptr; };
++        friend bool operator==(const Iterator& a, const Iterator& b) {
++            return a.m_ptr == b.m_ptr;
++        };
++        friend bool operator!=(const Iterator& a, const Iterator& b) {
++            return a.m_ptr != b.m_ptr;
++        };
+ 
+         Iterator(List* ptr) : m_ptr(ptr) {}
+ 
+diff --git a/src/vlib/index_min_pq.h b/src/vlib/index_min_pq.h
+index babaad3..17c2f82 100644
+--- a/src/vlib/index_min_pq.h
++++ b/src/vlib/index_min_pq.h
+@@ -32,6 +32,15 @@ class IndexMinPQ {
+         return;
+     }
+ 
++    friend std::ostream& operator<<(std::ostream& os, const IndexMinPQ& queue) {
++        os << "PQ:";
++        for (int i = 1; i <= queue.n; i++) {
++            os << queue.pq[i] << ",";
++        }
++        os << std::endl;
++        return os;
++    }
++
+     // sinks down from index pq[k] in the heap
+     void sink(int k) {
+         while (2 * k <= n) {
+@@ -169,8 +178,10 @@ class IndexMinPQ {
+ 
+     // associates key with index i
+     void insert(const int i, const T& key) {
+-        if (contains(i))
++        if (contains(i)) {
++            std::cout << i << std::endl;
+             throw logic_error("index is already in the priority queue");
++        }
+ 
+         // add x, and percolate it up to maintain heap invariant
+         n++;
+diff --git a/src/weighted_struct_digraph.h b/src/weighted_struct_digraph.h
+index 3d48d78..66621ca 100644
+--- a/src/weighted_struct_digraph.h
++++ b/src/weighted_struct_digraph.h
+@@ -11,7 +11,6 @@
+ #define __STRUCT_DIGRAPH_H__
+ 
+ #include <string>
+-#include <vector>
+ 
+ #include "vlib/edge.h"
+ #include "vlib/redblack_bst.h"
+diff --git a/tests/test_a_star.cpp b/tests/test_a_star.cpp
+index b762c19..93722ef 100644
+--- a/tests/test_a_star.cpp
++++ b/tests/test_a_star.cpp
+@@ -8,24 +8,39 @@
+ 
+ TEST_CASE("A2: A* Algorithm") {
+     // construct a lattice graph with only one smallest path
+-    std::vector<TestAirport> airports = {
+-        {0, 1.0, 1.0}, {1, 2.0, 1.0}, {2, 3.0, 1.0},
+-        {3, 1.0, 2.0}, {4, 2.0, 2.0}, {5, 3.0, 2.0},
+-        {6, 1.0, 3.0}, {7, 2.0, 3.0}, {8, 3.0, 3.0},
+-    };
++    Bag<TestAirport> airports;
++    airports.add(TestAirport{8, 3.0, 3.0});
++    airports.add(TestAirport{7, 2.0, 3.0});
++    airports.add(TestAirport{6, 1.0, 3.0});
++    airports.add(TestAirport{5, 3.0, 2.0});
++    airports.add(TestAirport{4, 2.0, 2.0});
++    airports.add(TestAirport{3, 1.0, 2.0});
++    airports.add(TestAirport{2, 3.0, 1.0});
++    airports.add(TestAirport{1, 2.0, 1.0});
++    airports.add(TestAirport{0, 1.0, 1.0});
++
+     WeightedStructDigraph<TestAirport> sdg(airports);
+-    std::vector<Edge> edges = {
+-        Edge(0, 1, 1.0),  Edge(0, 3, 10.0), Edge(1, 2, 10.0), Edge(1, 4, 1.0),
+-        Edge(2, 5, 10.0), Edge(3, 4, 10.0), Edge(3, 6, 10.0), Edge(4, 5, 1.0),
+-        Edge(4, 7, 10.0), Edge(5, 8, 1.0),  Edge(6, 7, 10.0), Edge(7, 8, 10.0)};
++    Bag<Edge> edges;
++    edges.add(Edge(0, 1, 1.0));
++    edges.add(Edge(0, 3, 10.0));
++    edges.add(Edge(1, 2, 10.0));
++    edges.add(Edge(1, 4, 1.0));
++    edges.add(Edge(2, 5, 10.0));
++    edges.add(Edge(3, 4, 10.0));
++    edges.add(Edge(3, 6, 10.0));
++    edges.add(Edge(4, 5, 1.0));
++    edges.add(Edge(4, 7, 10.0));
++    edges.add(Edge(5, 8, 1.0));
++    edges.add(Edge(6, 7, 10.0));
++    edges.add(Edge(7, 8, 10.0));
+     for (auto e : edges)
+         sdg.add_edge(airports[e.from()], airports[e.to()], e.weight());
+ 
+     SUBCASE("Path exists") {
+         // test that a path from top left to bottom right exists
+         // and is 5 long (3 itermidiate nodes + start + end)
+-        std::vector<TestAirport> p = a_star<TestAirport>(
+-            sdg, airports[0], airports[8], euclidean<TestAirport>);
++        Bag<TestAirport> p = a_star<TestAirport>(sdg, airports[0], airports[8],
++                                                 euclidean<TestAirport>);
+         REQUIRE(p.size() == 5);
+         // check that start and end point are right
+         CHECK(p[0] == airports[0]);
+@@ -35,7 +50,7 @@ TEST_CASE("A2: A* Algorithm") {
+         CHECK(p[4] == airports[8]);
+     }
+     SUBCASE("Path does not exist") {
+-        std::vector<TestAirport> p =
++        Bag<TestAirport> p =
+             a_star<TestAirport>(sdg, airports[0], TestAirport{11, 4.0, 4.0},
+                                 euclidean<TestAirport>);
+         CHECK(p.size() == 0);
+diff --git a/tests/test_struct_graph.cpp b/tests/test_struct_graph.cpp
+index f40d98a..a0a041b 100644
+--- a/tests/test_struct_graph.cpp
++++ b/tests/test_struct_graph.cpp
+@@ -2,28 +2,23 @@
+ 
+ #include <iostream>
+ 
++#include "../src/vlib/bag.h"
+ #include "../src/vlib/edge.h"
+ #include "../src/weighted_struct_digraph.h"
+ #include "TestAirport.h"
+ 
+ TEST_CASE("A1: Test Struct Graph (Explicit Construction)") {
+     // As well as this one using vectors
+-    REQUIRE_NOTHROW(
+-        WeightedStructDigraph<TestAirport> sdg2(std::vector<TestAirport>{
+-            {1, 1.0, 1.0},
+-            {2, 2.0, 2.0},
+-            {3, 3.0, 3.0},
+-            {4, 4.0, 4.0},
+-            {5, 5.0, 5.0},
+-        }));
+-
+-    WeightedStructDigraph<TestAirport> sdg(std::vector<TestAirport>{
+-        {1, 1.0, 1.0},
+-        {2, 2.0, 2.0},
+-        {3, 3.0, 3.0},
+-        {4, 4.0, 4.0},
+-        {5, 5.0, 5.0},
+-    });
++    Bag<TestAirport> airports;
++    airports.add(TestAirport{5, 5.0, 5.0});
++    airports.add(TestAirport{4, 4.0, 4.0});
++    airports.add(TestAirport{3, 3.0, 3.0});
++    airports.add(TestAirport{2, 2.0, 2.0});
++    airports.add(TestAirport{1, 1.0, 1.0});
++
++    REQUIRE_NOTHROW(WeightedStructDigraph<TestAirport> sdg2(airports));
++
++    WeightedStructDigraph<TestAirport> sdg(airports);
+     // the graph should have 5 vertices
+     CHECK(sdg.get_graph()->V() == 5);
+ 
+@@ -31,7 +26,7 @@ TEST_CASE("A1: Test Struct Graph (Explicit Construction)") {
+     CHECK(sdg.name_of(0) == TestAirport{1, 1.0, 1.0});
+ 
+     // It should contain this airport
+-    CHECK(sdg.contains(TestAirport{5, 5.0, 2.0}));
++    CHECK(sdg.contains(TestAirport{5, 5.0, 5.0}));
+ 
+     // It should not contain this airport
+     CHECK(!sdg.contains(TestAirport{6, 5.0, 2.0}));
+-- 
+2.37.0 (Apple Git-136)
+
